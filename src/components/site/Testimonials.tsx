@@ -23,6 +23,7 @@ const quotes = [
 
 export function Testimonials() {
   const [i, setI] = useState(0);
+  const q = quotes[i]!;
   useEffect(() => {
     const id = setInterval(() => setI((v) => (v + 1) % quotes.length), 6500);
     return () => clearInterval(id);
@@ -50,14 +51,14 @@ export function Testimonials() {
               transition={{ duration: 0.7 }}
             >
               <p className="font-display text-[clamp(1.4rem,3.2vw,2.4rem)] leading-snug italic">
-                “{quotes[i].text}”
+                “{q.text}”
               </p>
               <footer className="mt-8">
                 <p className="text-[0.65rem] tracking-[0.35em] uppercase text-gold">
-                  {quotes[i].name}
+                  {q.name}
                 </p>
                 <p className="mt-2 text-[0.6rem] tracking-[0.28em] uppercase text-muted-foreground">
-                  {quotes[i].place}
+                  {q.place}
                 </p>
               </footer>
             </motion.blockquote>
