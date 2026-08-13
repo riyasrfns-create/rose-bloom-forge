@@ -5,7 +5,7 @@ export function Intro() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setDone(true), 2100);
+    const t = setTimeout(() => setDone(true), 1500);
     return () => clearTimeout(t);
   }, []);
 

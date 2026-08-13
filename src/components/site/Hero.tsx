@@ -26,7 +26,7 @@ export function Hero() {
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 2.2, duration: 1 }}
+            transition={{ delay: 1.7, duration: 1 }}
             className="flex items-center gap-4"
           >
             <span className="h-px w-12 bg-gold/60" />
@@ -38,7 +38,7 @@ export function Hero() {
           <motion.h1
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 2.35, duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ delay: 1.8, duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
             className="mt-8 text-[clamp(3rem,8vw,6.5rem)] leading-[0.95] tracking-tight"
           >
             Timeless Elegance,
@@ -48,7 +48,7 @@ export function Hero() {
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 2.6, duration: 1 }}
+            transition={{ delay: 1.95, duration: 1 }}
             className="mt-8 max-w-lg text-sm leading-relaxed text-muted-foreground md:text-base"
           >
             Flower Industries (Pvt) Ltd crafts couture floral artistry from the highlands of Sri
@@ -59,7 +59,7 @@ export function Hero() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 2.75, duration: 1 }}
+            transition={{ delay: 2.05, duration: 1 }}
             className="mt-12 flex flex-wrap gap-4"
           >
             <a
@@ -86,7 +86,7 @@ export function Hero() {
             style={{ rotate, scale }}
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 2.1, duration: 1.6, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ delay: 1.6, duration: 1.6, ease: [0.16, 1, 0.3, 1] }}
             className="relative size-full"
           >
             <div
