@@ -83,6 +83,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "author", content: "Flower Industries (Pvt) Ltd" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:title", content: "Flower Industries (Pvt) Ltd" },
+      { name: "twitter:title", content: "Flower Industries (Pvt) Ltd" },
+      { property: "og:description", content: "Luxury florist and floral export from Sri Lanka." },
+      { name: "twitter:description", content: "Luxury florist and floral export from Sri Lanka." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3f3daeec61fc79c35e68d344b8f35820/id-preview-3fa1cb4a--8d72fdbb-1465-458e-b1e8-fde1d3cf9090.lovable.app-1786610717726.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3f3daeec61fc79c35e68d344b8f35820/id-preview-3fa1cb4a--8d72fdbb-1465-458e-b1e8-fde1d3cf9090.lovable.app-1786610717726.png" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
