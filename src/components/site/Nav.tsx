@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
 
 const links = [
+  { href: "/shop", label: "Shop", route: true },
   { href: "#collections", label: "Collections" },
   { href: "#offers", label: "Offers" },
   { href: "#export", label: "Global Export" },
@@ -37,12 +39,21 @@ export function Nav() {
         <ul className="hidden items-center gap-10 md:flex">
           {links.map((l) => (
             <li key={l.href}>
+              {l.route ? (
+                <Link
+                  to="/shop"
+                  className="relative text-[0.7rem] tracking-[0.28em] uppercase text-foreground/75 transition-colors hover:text-gold"
+                >
+                  {l.label}
+                </Link>
+              ) : (
               <a
                 href={l.href}
                 className="relative text-[0.7rem] tracking-[0.28em] uppercase text-foreground/75 transition-colors hover:text-gold"
               >
                 {l.label}
               </a>
+              )}
             </li>
           ))}
         </ul>
@@ -67,6 +78,15 @@ export function Nav() {
         <ul className="mt-4 space-y-4 border-t border-gold/15 bg-background/95 px-6 py-6 md:hidden">
           {links.map((l) => (
             <li key={l.href}>
+              {l.route ? (
+                <Link
+                  to="/shop"
+                  onClick={() => setOpen(false)}
+                  className="block text-sm tracking-[0.25em] uppercase text-foreground/80"
+                >
+                  {l.label}
+                </Link>
+              ) : (
               <a
                 href={l.href}
                 onClick={() => setOpen(false)}
@@ -74,6 +94,7 @@ export function Nav() {
               >
                 {l.label}
               </a>
+              )}
             </li>
           ))}
         </ul>
