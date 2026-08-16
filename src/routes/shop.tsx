@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, ShoppingBag } from "lucide-react";
+import { ArrowLeft, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { listProducts, placeOrder } from "@/lib/shop.functions";
 import { OWNER_EMAIL, formatPrice } from "@/lib/shop-config";
 import { Nav } from "@/components/site/Nav";
@@ -49,6 +49,11 @@ type Product = {
   currency: string;
   image_url: string | null;
   category: string;
+};
+
+type CartItem = {
+  product: Product;
+  quantity: number;
 };
 
 function OrderForm({ product, onDone }: { product: Product; onDone: () => void }) {
@@ -151,7 +156,115 @@ function OrderForm({ product, onDone }: { product: Product; onDone: () => void }
 function Shop() {
   const { data } = useSuspenseQuery(productsQuery);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cart, setCart] = useState<Record<string, CartItem>>({});
   const products = (data.products ?? []) as Product[];
+
+  const cartItems = useMemo(() => Object.values(cart), [cart]);
+  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const cartTotal = cartItems.reduce(
+    (sum, item) => sum + item.quantity * Number(item.product.price),
+    0,
+  );
+
+  const addToCart = (product: Product) => {
+    setCart((current) => ({
+      ...current,
+      [product.id]: {
+        product,
+        quantity: (current[product.id]?.quantity ?? 0) + 1,
+      },
+    }));
+    setIsCartOpen(true);
+  };
+
+  const updateCartQty = (productId: string, quantity: number) => {
+    setCart((current) => {
+      if (!current[productId]) return current;
+      if (quantity <= 0) {
+        const next = { ...current };
+        delete next[productId];
+        return next;
+      }
+      return {
+        ...current,
+        [productId]: {
+          ...current[productId],
+          quantity,
+        },
+      };
+    });
+  };
+
+  const handleCartCheckout = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (cartItems.length === 0) {
+      toast.error("Your cart is empty.");
+      return;
+    }
+
+    const form = new FormData(e.currentTarget);
+    const customerName = String(form.get("name") || "").trim();
+    const customerEmail = String(form.get("email") || "").trim();
+    const country = String(form.get("country") || "").trim();
+    const phone = String(form.get("phone") || "").trim();
+    const message = String(form.get("message") || "").trim();
+
+    if (!customerName || !customerEmail) {
+      toast.error("Please add your name and email to confirm the order.");
+      return;
+    }
+
+    try {
+      for (const item of cartItems) {
+        const result = await placeOrder({
+          data: {
+            productId: item.product.id,
+            quantity: item.quantity,
+            customerName,
+            customerEmail,
+            country,
+            phone,
+            message,
+          },
+        });
+
+        if (!result.ok) {
+          toast.error(result.error ?? "Could not place the order.");
+          return;
+        }
+      }
+
+      const formattedItems = cartItems
+        .map(
+          (item) =>
+            `${item.product.name} — ${item.quantity} × ${formatPrice(item.product.price, item.product.currency)}`,
+        )
+        .join("\n");
+
+      const body = [
+        `Customer: ${customerName}`,
+        `Email: ${customerEmail}`,
+        `Country: ${country}`,
+        `Phone: ${phone}`,
+        "",
+        formattedItems,
+        "",
+        message,
+      ].join("\n");
+
+      window.open(
+        `mailto:${OWNER_EMAIL}?subject=${encodeURIComponent("Cart order — Flower Industries")}&body=${encodeURIComponent(body)}`,
+        "_blank",
+      );
+
+      toast.success("Your cart order has been sent to the export desk.");
+      setCart({});
+      setIsCartOpen(false);
+    } catch {
+      toast.error("Please check your details and try again.");
+    }
+  };
 
   return (
     <>
@@ -173,6 +286,116 @@ function Shop() {
             worldwide courier.
           </p>
         </Reveal>
+
+        <div className="mt-8 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setIsCartOpen((value) => !value)}
+            className="inline-flex items-center gap-2 rounded-sm border border-gold/50 px-5 py-2.5 text-[0.6rem] tracking-[0.3em] uppercase text-gold"
+          >
+            <ShoppingBag size={16} />
+            Cart {cartCount > 0 && `(${cartCount})`}
+          </button>
+        </div>
+
+        {isCartOpen && (
+          <aside className="mt-6 rounded-sm border border-gold/15 bg-background/80 p-6 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-2xl">Your cart</h2>
+              {cartItems.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCart({})}
+                  className="text-[0.6rem] tracking-[0.3em] uppercase text-muted-foreground"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+
+            {cartItems.length === 0 ? (
+              <p className="mt-4 text-sm text-muted-foreground">Your cart is empty.</p>
+            ) : (
+              <div className="mt-5 space-y-4">
+                {cartItems.map(({ product, quantity }) => (
+                  <div key={product.id} className="flex items-center gap-3 rounded-sm border border-gold/10 p-3">
+                    <div className="flex-1">
+                      <p className="font-medium">{product.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatPrice(product.price, product.currency)} each
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-sm border border-gold/15 px-2 py-1">
+                      <button
+                        type="button"
+                        onClick={() => updateCartQty(product.id, quantity - 1)}
+                        className="text-gold"
+                        aria-label={`Decrease ${product.name}`}
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span className="min-w-6 text-center text-sm">{quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateCartQty(product.id, quantity + 1)}
+                        className="text-gold"
+                        aria-label={`Increase ${product.name}`}
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateCartQty(product.id, 0)}
+                      className="text-muted-foreground hover:text-destructive"
+                      aria-label={`Remove ${product.name}`}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+
+                <div className="rounded-sm border border-gold/10 p-4">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span className="gold-text font-display text-xl">
+                      {formatPrice(cartTotal, "USD")}
+                    </span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleCartCheckout} className="space-y-3 border-t border-gold/10 pt-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input name="name" required maxLength={100} placeholder="Full name" className={field} />
+                    <input
+                      name="email"
+                      type="email"
+                      required
+                      maxLength={255}
+                      placeholder="Email"
+                      className={field}
+                    />
+                    <input name="country" maxLength={100} placeholder="Country" className={field} />
+                    <input name="phone" maxLength={40} placeholder="Phone / WhatsApp" className={field} />
+                  </div>
+                  <textarea
+                    name="message"
+                    rows={3}
+                    maxLength={1000}
+                    placeholder="Delivery date, destination, personalisation…"
+                    className={field}
+                  />
+                  <button
+                    type="submit"
+                    className="w-full rounded-sm bg-gold px-6 py-3 text-[0.65rem] tracking-[0.3em] uppercase text-accent-foreground"
+                  >
+                    Confirm cart order
+                  </button>
+                </form>
+              </div>
+            )}
+          </aside>
+        )}
 
         {products.length === 0 ? (
           <p className="mt-16 text-sm text-muted-foreground">
@@ -203,18 +426,27 @@ function Shop() {
                     <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
                       {p.description}
                     </p>
-                    <div className="mt-6 flex items-center justify-between">
+                    <div className="mt-6 flex items-center justify-between gap-3">
                       <span className="font-display text-2xl gold-text">
                         {formatPrice(p.price, p.currency)}
                       </span>
-                      {openId !== p.id && (
+                      <div className="flex flex-wrap items-center justify-end gap-2">
                         <button
-                          onClick={() => setOpenId(p.id)}
-                          className="rounded-sm border border-gold/50 px-5 py-2.5 text-[0.6rem] tracking-[0.3em] uppercase text-gold transition-all hover:bg-gold hover:text-accent-foreground"
+                          type="button"
+                          onClick={() => addToCart(p)}
+                          className="rounded-sm border border-gold/50 px-4 py-2 text-[0.55rem] tracking-[0.25em] uppercase text-gold transition-all hover:bg-gold hover:text-accent-foreground"
                         >
-                          Order
+                          Add to cart
                         </button>
-                      )}
+                        {openId !== p.id && (
+                          <button
+                            onClick={() => setOpenId(p.id)}
+                            className="rounded-sm border border-gold/20 px-4 py-2 text-[0.55rem] tracking-[0.25em] uppercase text-muted-foreground transition-all hover:text-gold"
+                          >
+                            Order now
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {openId === p.id && <OrderForm product={p} onDone={() => setOpenId(null)} />}
                   </div>

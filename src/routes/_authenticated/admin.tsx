@@ -1,10 +1,34 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/shop-config";
+
+async function hasAdminRole(userId: string) {
+  const { data: roles, error } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+
+  if (error || !roles) return false;
+
+  return roles.some((row) => {
+    const role = String((row as { role?: string } | null)?.role ?? "").toLowerCase();
+    return role === "admin";
+  });
+}
+
+async function ensureAdminAccess() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) throw redirect({ to: "/auth" });
+
+  const isAdmin = await hasAdminRole(data.user.id);
+  if (!isAdmin) throw redirect({ to: "/shop" });
+
+  return { user: data.user };
+}
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -16,6 +40,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
       { name: "robots", content: "noindex" },
     ],
   }),
+  beforeLoad: ensureAdminAccess,
   component: Admin,
 });
 
@@ -31,12 +56,12 @@ function Admin() {
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return setIsAdmin(false);
-      const { data: rows } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", data.user.id)
-        .eq("role", "admin");
-      setIsAdmin((rows?.length ?? 0) > 0);
+      const { data: rows } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
+      const isAdminUser = (rows ?? []).some((row) => {
+        const role = String((row as { role?: string } | null)?.role ?? "").toLowerCase();
+        return role === "admin";
+      });
+      setIsAdmin(isAdminUser);
     });
   }, []);
 
@@ -143,110 +168,116 @@ function Admin() {
         </p>
       )}
 
-      <section className="mt-12 rounded-sm border border-gold/15 p-7 glass-panel">
-        <h2 className="text-2xl">Add an item</h2>
-        <form onSubmit={addProduct} className="mt-6 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <input name="name" required maxLength={120} placeholder="Item name" className={field} />
-            <input name="category" placeholder="Category" className={field} />
-            <input
-              name="price"
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              placeholder="Price"
+      {isAdmin === true && (
+        <section className="mt-12 rounded-sm border border-gold/15 p-7 glass-panel">
+          <h2 className="text-2xl">Add an item</h2>
+          <form onSubmit={addProduct} className="mt-6 space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input name="name" required maxLength={120} placeholder="Item name" className={field} />
+              <input name="category" placeholder="Category" className={field} />
+              <input
+                name="price"
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                placeholder="Price"
+                className={field}
+              />
+              <input name="currency" defaultValue="USD" maxLength={3} className={field} />
+            </div>
+            <textarea
+              name="description"
+              rows={3}
+              maxLength={800}
+              placeholder="Description"
               className={field}
             />
-            <input name="currency" defaultValue="USD" maxLength={3} className={field} />
-          </div>
-          <textarea
-            name="description"
-            rows={3}
-            maxLength={800}
-            placeholder="Description"
-            className={field}
-          />
-          <input name="image_url" placeholder="Image URL (optional)" className={field} />
-          <input
-            name="image_file"
-            type="file"
-            accept="image/*"
-            className={`${field} file:mr-4 file:rounded-sm file:border-0 file:bg-gold file:px-3 file:py-1.5 file:text-xs file:text-accent-foreground`}
-          />
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-sm bg-gold px-6 py-3 text-[0.65rem] tracking-[0.3em] uppercase text-accent-foreground disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Add item"}
-          </button>
-        </form>
-      </section>
-
-      <section className="mt-14">
-        <h2 className="text-2xl">Catalogue</h2>
-        <div className="mt-6 space-y-3">
-          {(products.data ?? []).map((p) => (
-            <div
-              key={p.id}
-              className="flex items-center gap-4 rounded-sm border border-gold/15 p-4"
+            <input name="image_url" placeholder="Image URL (optional)" className={field} />
+            <input
+              name="image_file"
+              type="file"
+              accept="image/*"
+              className={`${field} file:mr-4 file:rounded-sm file:border-0 file:bg-gold file:px-3 file:py-1.5 file:text-xs file:text-accent-foreground`}
+            />
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-sm bg-gold px-6 py-3 text-[0.65rem] tracking-[0.3em] uppercase text-accent-foreground disabled:opacity-60"
             >
-              {p.image_url && (
-                <img src={p.image_url} alt={p.name} className="h-14 w-14 rounded-sm object-cover" />
-              )}
-              <div className="flex-1">
-                <p className="text-lg">{p.name}</p>
-                <p className="text-xs text-muted-foreground">{p.category}</p>
-              </div>
-              <span className="gold-text font-display text-xl">
-                {formatPrice(Number(p.price), p.currency)}
-              </span>
-              <button
-                onClick={() => remove(p.id)}
-                aria-label={`Remove ${p.name}`}
-                className="text-muted-foreground transition-colors hover:text-destructive"
-              >
-                <Trash2 size={18} />
-              </button>
-            </div>
-          ))}
-          {products.data?.length === 0 && (
-            <p className="text-sm text-muted-foreground">No items yet.</p>
-          )}
-        </div>
-      </section>
+              {saving ? "Saving…" : "Add item"}
+            </button>
+          </form>
+        </section>
+      )}
 
-      <section className="mt-14">
-        <h2 className="text-2xl">Orders</h2>
-        <div className="mt-6 space-y-3">
-          {(orders.data ?? []).map((o) => (
-            <div key={o.id} className="rounded-sm border border-gold/15 p-4 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-base">
-                  {o.quantity} × {o.product_name}
-                </p>
-                <span className="gold-text font-display text-lg">
-                  {formatPrice(Number(o.unit_price) * o.quantity, o.currency)}
-                </span>
-              </div>
-              <p className="mt-2 text-muted-foreground">
-                {o.customer_name} · {o.customer_email} · {o.country} {o.phone}
-              </p>
-              {o.message && <p className="mt-2 text-muted-foreground">{o.message}</p>}
-              <a
-                href={`mailto:${o.customer_email}?subject=${encodeURIComponent(`Your order — ${o.product_name}`)}`}
-                className="mt-3 inline-block text-[0.6rem] tracking-[0.3em] uppercase text-gold"
+      {isAdmin === true && (
+        <section className="mt-14">
+          <h2 className="text-2xl">Catalogue</h2>
+          <div className="mt-6 space-y-3">
+            {(products.data ?? []).map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center gap-4 rounded-sm border border-gold/15 p-4"
               >
-                Reply by email
-              </a>
-            </div>
-          ))}
-          {orders.data?.length === 0 && (
-            <p className="text-sm text-muted-foreground">No orders yet.</p>
-          )}
-        </div>
-      </section>
+                {p.image_url && (
+                  <img src={p.image_url} alt={p.name} className="h-14 w-14 rounded-sm object-cover" />
+                )}
+                <div className="flex-1">
+                  <p className="text-lg">{p.name}</p>
+                  <p className="text-xs text-muted-foreground">{p.category}</p>
+                </div>
+                <span className="gold-text font-display text-xl">
+                  {formatPrice(Number(p.price), p.currency)}
+                </span>
+                <button
+                  onClick={() => remove(p.id)}
+                  aria-label={`Remove ${p.name}`}
+                  className="text-muted-foreground transition-colors hover:text-destructive"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            ))}
+            {products.data?.length === 0 && (
+              <p className="text-sm text-muted-foreground">No items yet.</p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {isAdmin === true && (
+        <section className="mt-14">
+          <h2 className="text-2xl">Orders</h2>
+          <div className="mt-6 space-y-3">
+            {(orders.data ?? []).map((o) => (
+              <div key={o.id} className="rounded-sm border border-gold/15 p-4 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-base">
+                    {o.quantity} × {o.product_name}
+                  </p>
+                  <span className="gold-text font-display text-lg">
+                    {formatPrice(Number(o.unit_price) * o.quantity, o.currency)}
+                  </span>
+                </div>
+                <p className="mt-2 text-muted-foreground">
+                  {o.customer_name} · {o.customer_email} · {o.country} {o.phone}
+                </p>
+                {o.message && <p className="mt-2 text-muted-foreground">{o.message}</p>}
+                <a
+                  href={`mailto:${o.customer_email}?subject=${encodeURIComponent(`Your order — ${o.product_name}`)}`}
+                  className="mt-3 inline-block text-[0.6rem] tracking-[0.3em] uppercase text-gold"
+                >
+                  Reply by email
+                </a>
+              </div>
+            ))}
+            {orders.data?.length === 0 && (
+              <p className="text-sm text-muted-foreground">No orders yet.</p>
+            )}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

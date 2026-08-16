@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -25,10 +25,35 @@ export const Route = createFileRoute("/auth")({
 const field =
   "w-full rounded-sm border border-gold/20 bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:border-gold focus:outline-none transition-colors";
 
+async function getIsAdmin() {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return false;
+
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userData.user.id);
+
+  return (roles ?? []).some((row) => {
+    const role = String((row as { role?: string } | null)?.role ?? "").toLowerCase();
+    return role === "admin";
+  });
+}
+
 function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session?.user) return;
+
+      const isAdmin = await getIsAdmin();
+      navigate({ to: isAdmin ? "/admin" : "/shop" });
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -49,8 +74,8 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
-      const { data } = await supabase.auth.getSession();
-      if (data.session) navigate({ to: "/admin" });
+      const isAdmin = await getIsAdmin();
+      navigate({ to: isAdmin ? "/admin" : "/shop" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign in failed");
     } finally {
@@ -67,7 +92,9 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/admin" });
+
+    const isAdmin = await getIsAdmin();
+    navigate({ to: isAdmin ? "/admin" : "/shop" });
   };
 
   return (
