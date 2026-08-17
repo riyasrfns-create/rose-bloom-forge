@@ -9,6 +9,7 @@ const links = [
   { href: "#export", label: "Global Export" },
   { href: "#gallery", label: "Gallery" },
   { href: "#contact", label: "Contact" },
+  { href: "/admin", label: "Admin", route: true },
 ];
 
 export function Nav() {
@@ -41,7 +42,7 @@ export function Nav() {
             <li key={l.href}>
               {l.route ? (
                 <Link
-                  to="/shop"
+                  to={l.href as any}
                   className="relative text-[0.7rem] tracking-[0.28em] uppercase text-foreground/75 transition-colors hover:text-gold"
                 >
                   {l.label}
@@ -80,7 +81,7 @@ export function Nav() {
             <li key={l.href}>
               {l.route ? (
                 <Link
-                  to="/shop"
+                  to={l.href as any}
                   onClick={() => setOpen(false)}
                   className="block text-sm tracking-[0.25em] uppercase text-foreground/80"
                 >
