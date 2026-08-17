@@ -76,12 +76,20 @@ function AdminPage() {
   const offers = useQuery({
     queryKey: ["admin-offers"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("offers")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
+      try {
+        const { data, error } = await supabase
+          .from("offers")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) {
+          console.warn("Offers table not ready:", error);
+          return [];
+        }
+        return data || [];
+      } catch (err) {
+        console.warn("Offers fetch error:", err);
+        return [];
+      }
     },
   });
 
@@ -194,7 +202,14 @@ function AdminPage() {
         discount_percent: Number(fd.get("discount_percent") || 0),
         valid_until: String(fd.get("valid_until") || ""),
       });
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("offers")) {
+          toast.error("Please set up the offers table in Supabase first using the migration SQL.");
+        } else {
+          throw error;
+        }
+        return;
+      }
       form.reset();
       toast.success("Offer created.");
       qc.invalidateQueries({ queryKey: ["admin-offers"] });
@@ -207,14 +222,18 @@ function AdminPage() {
   };
 
   const removeOffer = async (id: string) => {
-    const { error } = await supabase.from("offers").delete().eq("id", id);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      const { error } = await supabase.from("offers").delete().eq("id", id);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Offer removed.");
+      qc.invalidateQueries({ queryKey: ["admin-offers"] });
+      qc.invalidateQueries({ queryKey: ["offers"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not delete offer");
     }
-    toast.success("Offer removed.");
-    qc.invalidateQueries({ queryKey: ["admin-offers"] });
-    qc.invalidateQueries({ queryKey: ["offers"] });
   };
 
   const signOut = async () => {
