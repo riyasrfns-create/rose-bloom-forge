@@ -109,6 +109,36 @@ export type Database = {
         }
         Relationships: []
       }
+      offers: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount_percent: number
+          id: string
+          title: string
+          updated_at: string
+          valid_until: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount_percent?: number
+          id?: string
+          title: string
+          updated_at?: string
+          valid_until: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount_percent?: number
+          id?: string
+          title?: string
+          updated_at?: string
+          valid_until?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
