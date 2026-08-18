@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Reveal, SectionLabel, GoldSparkles } from "./ambient";
 
-const offers = [
+export const fallbackOffers = [
   {
     badge: "Save 20%",
     title: "International Debut Offer",
@@ -21,6 +23,20 @@ const offers = [
     terms: "Hotels, resorts & wedding planners",
   },
 ];
+
+function getLocalOffers() {
+  if (typeof window === "undefined") return fallbackOffers;
+
+  try {
+    const raw = window.localStorage.getItem("rose_bloom_offers");
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch {
+    // ignore parse errors and use the default offers
+  }
+
+  return fallbackOffers;
+}
 
 function useCountdown(target: number) {
   const [left, setLeft] = useState<number | null>(null);
@@ -43,6 +59,36 @@ function useCountdown(target: number) {
 export function Offers() {
   const [target] = useState(() => Date.now() + 1000 * 60 * 60 * 24 * 21);
   const c = useCountdown(target);
+
+  const { data: offerCards = getLocalOffers() } = useQuery({
+    queryKey: ["offers"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from("offers")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (!error && data && data.length > 0) {
+          return data.map((offer) => ({
+            badge: `${Number(offer.discount_percent || 0)}% Off`,
+            title: offer.title,
+            copy: offer.description || "Exclusive boutique savings for selected floral collections.",
+            terms: offer.valid_until
+              ? `Valid until ${new Date(offer.valid_until).toLocaleDateString()}`
+              : "Limited seasonal offer",
+          }));
+        }
+      } catch {
+        // fall through to the local fallback offers
+      }
+
+      return getLocalOffers();
+    },
+    staleTime: 30000,
+  });
+
+  const offers = offerCards.length > 0 ? offerCards : fallbackOffers;
 
   return (
     <section id="offers" className="relative overflow-hidden py-32">

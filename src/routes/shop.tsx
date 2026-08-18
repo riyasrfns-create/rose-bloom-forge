@@ -9,9 +9,34 @@ import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
 import { Reveal, SectionLabel } from "@/components/site/ambient";
 
+function readLocalProducts() {
+  if (typeof window === "undefined") return [] as Product[];
+
+  try {
+    const raw = window.localStorage.getItem("rose_bloom_products");
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 const productsQuery = queryOptions({
   queryKey: ["products"],
-  queryFn: () => listProducts(),
+  queryFn: async () => {
+    const result = await listProducts();
+    if (result.error) {
+      const fallbackProducts = readLocalProducts();
+      return { products: fallbackProducts, error: null };
+    }
+
+    if (Array.isArray(result.products) && result.products.length > 0) {
+      return result;
+    }
+
+    return { products: readLocalProducts(), error: null };
+  },
+  staleTime: 30000,
 });
 
 const title = "Boutique Shop | Flower Industries (Pvt) Ltd";

@@ -41,7 +41,7 @@ export const listProducts = createServerFn({ method: "GET" }).handler(async () =
 });
 
 export const placeOrder = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => orderSchema.parse(input))
+  .validator((input: unknown) => orderSchema.parse(input))
   .handler(async ({ data }) => {
     const supabase = publicClient();
     const { data: product, error: productError } = await supabase
